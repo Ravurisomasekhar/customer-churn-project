@@ -8,54 +8,146 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import (
+    accuracy_score,
+    confusion_matrix,
+    classification_report
+)
 
-# Load dataset
+# =========================
+# Load Dataset
+# =========================
 df = pd.read_csv("data.csv")
 
-# Basic info
-print("Dataset Loaded Successfully")
+print("Dataset Loaded Successfully\n")
 print(df.head())
 
-# Drop unnecessary column
+# =========================
+# Data Cleaning
+# =========================
+
+# Remove customerID
 df.drop("customerID", axis=1, inplace=True)
 
 # Convert TotalCharges to numeric
-df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors='coerce')
+df["TotalCharges"] = pd.to_numeric(
+    df["TotalCharges"],
+    errors='coerce'
+)
 
 # Fill missing values
-df.fillna(df.mean(), inplace=True)
+df["TotalCharges"].fillna(df["TotalCharges"].mean(), inplace=True)
 
-# Encode categorical columns
+# =========================
+# Encode Categorical Data
+# =========================
 le = LabelEncoder()
+
 for col in df.columns:
     if df[col].dtype == 'object':
         df[col] = le.fit_transform(df[col])
 
-# Split features and target
+# =========================
+# Split Dataset
+# =========================
 X = df.drop("Churn", axis=1)
 y = df["Churn"]
 
-# Train-test split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=42
+)
 
+# =========================
 # Models
+# =========================
 models = {
     "Logistic Regression": LogisticRegression(max_iter=1000),
     "Decision Tree": DecisionTreeClassifier(),
     "Random Forest": RandomForestClassifier()
 }
 
-# Train and evaluate
+accuracies = {}
+
+# =========================
+# Training & Evaluation
+# =========================
 for name, model in models.items():
+
     model.fit(X_train, y_train)
+
     y_pred = model.predict(X_test)
 
-    print(f"\n{name}")
-    print("Accuracy:", accuracy_score(y_test, y_pred))
-    print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+    accuracy = accuracy_score(y_test, y_pred)
 
-# Visualization
+    accuracies[name] = accuracy
+
+    print(f"\n===== {name} =====")
+
+    print("Accuracy:", accuracy)
+
+    print("\nConfusion Matrix:")
+    print(confusion_matrix(y_test, y_pred))
+
+    print("\nClassification Report:")
+    print(classification_report(y_test, y_pred))
+
+# =========================
+# Accuracy Comparison Graph
+# =========================
+plt.figure(figsize=(8, 5))
+
+sns.barplot(
+    x=list(accuracies.keys()),
+    y=list(accuracies.values())
+)
+
+plt.title("Model Accuracy Comparison")
+plt.ylabel("Accuracy")
+plt.ylim(0.7, 1.0)
+
+plt.show()
+
+# =========================
+# Churn Distribution
+# =========================
+plt.figure(figsize=(6, 4))
+
 sns.countplot(x='Churn', data=df)
+
 plt.title("Customer Churn Distribution")
+
+plt.show()
+
+# =========================
+# Feature Importance
+# =========================
+rf_model = RandomForestClassifier()
+
+rf_model.fit(X_train, y_train)
+
+importance = rf_model.feature_importances_
+
+feature_importance = pd.DataFrame({
+    'Feature': X.columns,
+    'Importance': importance
+})
+
+feature_importance = feature_importance.sort_values(
+    by='Importance',
+    ascending=False
+)
+
+plt.figure(figsize=(10, 6))
+
+sns.barplot(
+    x='Importance',
+    y='Feature',
+    data=feature_importance
+)
+
+plt.title("Feature Importance")
+
 plt.show()
